@@ -21,6 +21,36 @@ resource "azurerm_subnet" "main" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
+resource "azurerm_network_security_group" "main" {
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  name                = "allowall"
+
+  security_rule {
+    name                       = "allowall"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "main" {
+  subnet_id                 = azurerm_subnet.main.id
+  network_security_group_id = azurerm_network_security_group.main.id
+}
+
+resource "azurerm_public_ip" "main_A" {
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  name                = format("%s-public", var.name)
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
 
 # Using the older "azurerm_virtual_machine" resource
 resource "azurerm_network_interface" "main_A" {
@@ -32,8 +62,15 @@ resource "azurerm_network_interface" "main_A" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.main.id
     private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.main_A.id
   }
 }
+
+data "azurerm_image" "lookup" {
+  resource_group_name = var.azure_image_rg_name
+  name                = var.azure_image_name
+}
+
 resource "azurerm_virtual_machine" "main_A" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
@@ -47,21 +84,14 @@ resource "azurerm_virtual_machine" "main_A" {
   delete_data_disks_on_termination = true
 
   storage_image_reference {
-    id = var.azure_image_id
+    id = data.azurerm_image.lookup.id
   }
 
   storage_os_disk {
     name              = "osdisk"
-    caching           = "ReadWrite"
+    caching           = data.azurerm_image.lookup.os_disk[0].caching
+    disk_size_gb      = data.azurerm_image.lookup.os_disk[0].size_gb
     create_option     = "FromImage"
-    managed_disk_type = "Standard_LRS"
-  }
-  storage_data_disk {
-    name              = "datadisk1"
-    lun               = 0
-    caching           = "ReadWrite"
-    create_option     = "FromImage"
-    disk_size_gb      = 128
     managed_disk_type = "Standard_LRS"
   }
 
@@ -75,8 +105,7 @@ resource "azurerm_virtual_machine" "main_A" {
   }
 }
 
-
-
+# azurerm_windows_virtual_machine will not work with an Azure Image with data disks
 
 # resource "azurerm_network_interface" "main_B" {
 #   resource_group_name = azurerm_resource_group.main.name
@@ -98,7 +127,7 @@ resource "azurerm_virtual_machine" "main_A" {
 #     azurerm_network_interface.main_B.id,
 #   ]
 #   size            = "Standard_D2s_v3"
-#   source_image_id = var.azure_image_id
+#   source_image_id = data.azurerm_image.lookup.id
 
 #   admin_username = "testadmin"
 #   admin_password = "P@$$w0rd1234!"

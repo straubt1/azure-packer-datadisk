@@ -23,9 +23,10 @@ This is the fun stuff.
 Update the vars file:
 
 ```hcl
-name           = "frompacker"
-location       = "centralus"
-azure_image_id = "/subscriptions/..."
+name                = "frompacker"
+location            = "centralus"
+azure_image_rg_name = ""
+azure_image_name    = ""
 ```
 
 `terraform apply`
