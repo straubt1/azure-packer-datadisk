@@ -21,7 +21,7 @@ source "azure-arm" "basic" {
 
   image_publisher = "MicrosoftWindowsServer"
   image_offer     = "WindowsServer"
-  image_sku       = "2019-datacenter-gensecond"
+  image_sku       = "2019-Datacenter"
   os_type         = "Windows"
 
 
@@ -39,7 +39,8 @@ source "azure-arm" "basic" {
   location = var.azure_region
   vm_size  = "Standard_D2s_v3"
 
-  disk_additional_size = [128]
+  disk_additional_size = [128, 256]
+  // managed_image_storage_account_type = "Premium_LRS"
 }
 
 
@@ -48,13 +49,7 @@ build {
 
   provisioner "powershell" {
     inline = [
-      // " # NOTE: the following *3* lines are only needed if the you have installed the Guest Agent.",
-      // "  while ((Get-Service RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }",
-      // "  while ((Get-Service WindowsAzureTelemetryService).Status -ne 'Running') { Start-Sleep -s 5 }",
-      // "  while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }",
-
-      "& $env:SystemRoot\\System32\\Sysprep\\Sysprep.exe /oobe /generalize /quiet /quit /mode:vm",
-      "while($true) { $imageState = Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State | Select ImageState; if($imageState.ImageState -ne 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { Write-Output $imageState.ImageState; Start-Sleep -s 10  } else { break } }"
+      "$env:SystemRoot\\System32\\Sysprep\\Sysprep.exe /oobe /generalize /quit /mode:vm",
     ]
   }
 
